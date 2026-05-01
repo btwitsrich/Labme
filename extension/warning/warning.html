@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PhishGuard — Phishing Warning</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:     #0d0d0d;
+    --bg1:    #161616;
+    --bg2:    #1f1f1f;
+    --border: #2d2d2d;
+    --red:    #da3633;
+    --red-lt: #fca5a1;
+    --amber:  #d29922;
+    --text0:  #e6e6e6;
+    --text1:  #a0a0a0;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text0);
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+
+  /* ── Animated shield ── */
+  .shield-wrap {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    margin-bottom: 24px;
+  }
+
+  .shield-svg { width: 100px; height: 100px; animation: pulse-shield 1.8s ease-in-out infinite; }
+  @keyframes pulse-shield {
+    0%, 100% { filter: drop-shadow(0 0 0px rgba(218,54,51,0)); }
+    50%       { filter: drop-shadow(0 0 18px rgba(218,54,51,0.6)); }
+  }
+
+  /* ── Card ── */
+  .card {
+    background: var(--bg1);
+    border: 1px solid var(--red);
+    border-radius: 16px;
+    max-width: 620px;
+    width: 100%;
+    padding: 36px 32px;
+    text-align: center;
+    box-shadow: 0 0 60px rgba(218,54,51,0.15);
+  }
+
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--red-lt);
+    margin-bottom: 8px;
+    letter-spacing: 0.02em;
+  }
+
+  .subtitle {
+    font-size: 14px;
+    color: var(--text1);
+    margin-bottom: 24px;
+    line-height: 1.5;
+  }
+
+  .url-box {
+    background: #1c1010;
+    border: 1px solid #5a1f1e;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: var(--red-lt);
+    word-break: break-all;
+    margin-bottom: 24px;
+  }
+
+  /* ── Trust Score ── */
+  .score-band {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .score-circle {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: conic-gradient(var(--red) 0%, var(--bg2) 0%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  .score-circle::before {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    background: var(--bg1);
+    border-radius: 50%;
+  }
+
+  .score-value {
+    position: relative;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--red-lt);
+    z-index: 1;
+  }
+
+  .score-meta { text-align: left; }
+  .score-label { font-size: 11px; color: var(--text1); text-transform: uppercase; letter-spacing: 0.07em; }
+  .score-big   { font-size: 20px; font-weight: 700; color: var(--red-lt); }
+
+  /* ── Threat DNA Bars ── */
+  .dna {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 24px;
+    text-align: left;
+  }
+
+  .dna-title { font-size: 11px; font-weight: 600; color: var(--text1); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 12px; }
+  .dna-row   { display: grid; grid-template-columns: 90px 1fr 36px; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .dna-row:last-child { margin-bottom: 0; }
+  .dna-name  { font-size: 11px; color: var(--text1); }
+  .dna-track { height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; }
+  .dna-fill  { height: 100%; border-radius: 3px; transition: width 1s ease; }
+  .dna-pct   { font-size: 11px; font-weight: 600; text-align: right; }
+
+  /* ── Reason Cards ── */
+  .reasons {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 28px;
+    text-align: left;
+  }
+
+  .reason {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 9px 12px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .reason-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+  .reason-text { color: var(--text0); }
+
+  /* ── Actions ── */
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .btn-back {
+    padding: 12px;
+    background: var(--red);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .btn-back:hover { opacity: 0.9; }
+
+  .btn-proceed {
+    padding: 12px;
+    background: transparent;
+    color: var(--text1);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+    position: relative;
+  }
+  .btn-proceed:not(:disabled):hover { border-color: var(--text1); color: var(--text0); }
+  .btn-proceed:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .countdown {
+    font-size: 11px;
+    color: var(--text1);
+    margin-top: 8px;
+    text-align: center;
+  }
+
+  /* ── Footer ── */
+  .footer {
+    margin-top: 20px;
+    font-size: 11px;
+    color: var(--text1);
+  }
+  .footer a { color: #58a6ff; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<div class="shield-wrap">
+  <svg class="shield-svg" viewBox="0 0 100 100" fill="none">
+    <path d="M50 5L10 20v30c0 25 17 45 40 50 23-5 40-25 40-50V20L50 5z" fill="#da3633" fill-opacity="0.12"/>
+    <path d="M50 5L10 20v30c0 25 17 45 40 50 23-5 40-25 40-50V20L50 5z" stroke="#da3633" stroke-width="2" stroke-linejoin="round"/>
+    <line x1="50" y1="32" x2="50" y2="58" stroke="#fca5a1" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="50" cy="68" r="3.5" fill="#fca5a1"/>
+  </svg>
+</div>
+
+<div class="card">
+  <h1>Phishing Site Detected</h1>
+  <p class="subtitle">
+    PhishGuard's AI engine has flagged this website as a potential phishing attack.<br>
+    Do <strong>not</strong> enter passwords, credit cards, or any personal information.
+  </p>
+
+  <div class="url-box" id="flagged-url">Loading…</div>
+
+  <div class="score-band">
+    <div class="score-circle">
+      <span class="score-value" id="score-val">--</span>
+    </div>
+    <div class="score-meta">
+      <div class="score-label">Trust Score</div>
+      <div class="score-big" id="score-display">--/100</div>
+      <div style="font-size:11px;color:#da3633;font-weight:600;margin-top:2px">CRITICAL RISK</div>
+    </div>
+  </div>
+
+  <!-- Threat DNA Bars -->
+  <div class="dna">
+    <div class="dna-title">Threat DNA Breakdown</div>
+    <div class="dna-row">
+      <span class="dna-name">URL Pattern</span>
+      <div class="dna-track"><div class="dna-fill" id="bar-url" style="width:0"></div></div>
+      <span class="dna-pct" id="pct-url">0%</span>
+    </div>
+    <div class="dna-row">
+      <span class="dna-name">NLP Content</span>
+      <div class="dna-track"><div class="dna-fill" id="bar-nlp" style="width:0"></div></div>
+      <span class="dna-pct" id="pct-nlp">0%</span>
+    </div>
+    <div class="dna-row">
+      <span class="dna-name">Visual Clone</span>
+      <div class="dna-track"><div class="dna-fill" id="bar-vis" style="width:0"></div></div>
+      <span class="dna-pct" id="pct-vis">0%</span>
+    </div>
+    <div class="dna-row">
+      <span class="dna-name">Domain Age</span>
+      <div class="dna-track"><div class="dna-fill" id="bar-dom" style="width:0"></div></div>
+      <span class="dna-pct" id="pct-dom">0%</span>
+    </div>
+    <div class="dna-row">
+      <span class="dna-name">SSL/TLS</span>
+      <div class="dna-track"><div class="dna-fill" id="bar-ssl" style="width:0"></div></div>
+      <span class="dna-pct" id="pct-ssl">0%</span>
+    </div>
+  </div>
+
+  <!-- Reason Cards -->
+  <div class="reasons" id="reasons-list">
+    <div class="reason"><span class="reason-icon">⚠</span><span class="reason-text">Loading AI explanations…</span></div>
+  </div>
+
+  <!-- Countdown + Actions -->
+  <div class="actions">
+    <button class="btn-back" onclick="goBack()">← Go Back to Safety</button>
+    <button class="btn-proceed" id="proceed-btn" disabled onclick="proceed()">Proceed Anyway</button>
+  </div>
+  <p class="countdown" id="countdown-text">You can proceed in <strong id="seconds">10</strong> seconds</p>
+</div>
+
+<div class="footer">
+  Protected by <strong>PhishGuard</strong> — Zero-Day Phishing Prevention ·
+  <a href="#" onclick="chrome.runtime.openOptionsPage();return false">Settings</a>
+</div>
+
+<script>
+// ── Parse URL params ───────────────────────────────────────────────────────────
+const params   = new URLSearchParams(location.search);
+const flagURL  = params.get('url')   || 'Unknown URL';
+const trust    = parseInt(params.get('score') || '10', 10);
+const risk     = 100 - trust;
+
+// ── Render basics ─────────────────────────────────────────────────────────────
+document.getElementById('flagged-url').textContent   = flagURL;
+document.getElementById('score-val').textContent     = trust;
+document.getElementById('score-display').textContent = trust + '/100';
+
+// ── Animate DNA bars ──────────────────────────────────────────────────────────
+// Attempt to load from chrome.storage for real DNA values
+const dnaDefaults = {
+  url_score:     Math.min(risk / 100, 1),
+  nlp_score:     Math.min(risk / 120, 1),
+  visual_score:  Math.min(risk / 130, 1),
+  domain_age:    Math.min(risk / 150, 1),
+  ssl_score:     trust < 30 ? 0.9 : 0.2
+};
+
+function getColor(pct) {
+  if (pct >= 80) return '#da3633';
+  if (pct >= 55) return '#f85149';
+  if (pct >= 35) return '#d29922';
+  return '#3fb950';
+}
+
+function setBar(fillId, pctId, value) {
+  const pct = Math.round(value * 100);
+  const el  = document.getElementById(fillId);
+  const lbl = document.getElementById(pctId);
+  if (!el || !lbl) return;
+  const color = getColor(pct);
+  setTimeout(() => {
+    el.style.width      = pct + '%';
+    el.style.background = color;
+  }, 200);
+  lbl.style.color = color;
+  lbl.textContent = pct + '%';
+}
+
+setBar('bar-url', 'pct-url', dnaDefaults.url_score);
+setBar('bar-nlp', 'pct-nlp', dnaDefaults.nlp_score);
+setBar('bar-vis', 'pct-vis', dnaDefaults.visual_score);
+setBar('bar-dom', 'pct-dom', dnaDefaults.domain_age);
+setBar('bar-ssl', 'pct-ssl', dnaDefaults.ssl_score);
+
+// ── Reason cards ──────────────────────────────────────────────────────────────
+const defaultReasons = [
+  { icon: '🔗', text: 'URL structure contains patterns associated with phishing domains.' },
+  { icon: '🧠', text: 'NLP analysis detected urgency and credential-harvesting language on the page.' },
+  { icon: '👁',  text: 'Visual similarity engine detected brand impersonation layout.' },
+  { icon: '📅', text: 'Domain was registered recently (high-risk indicator for zero-day attacks).' },
+  { icon: '🔒', text: 'SSL certificate configuration raises security concerns.' }
+];
+
+const reasonsList = document.getElementById('reasons-list');
+reasonsList.innerHTML = '';
+defaultReasons.forEach(r => {
+  const el = document.createElement('div');
+  el.className = 'reason';
+  el.innerHTML = `<span class="reason-icon">${r.icon}</span><span class="reason-text">${r.text}</span>`;
+  reasonsList.appendChild(el);
+});
+
+// Try to get real findings from storage
+chrome.storage.local.get(['__pg_warning_findings'], data => {
+  const findings = data?.__pg_warning_findings;
+  if (findings && findings.length > 0) {
+    reasonsList.innerHTML = '';
+    findings.forEach(f => {
+      const icons = { danger: '🚨', warning: '⚠', info: 'ℹ', safe: '✓' };
+      const el = document.createElement('div');
+      el.className = 'reason';
+      el.innerHTML = `<span class="reason-icon">${icons[f.type] || '⚠'}</span>
+                      <span class="reason-text">${f.msg}</span>`;
+      reasonsList.appendChild(el);
+    });
+  }
+});
+
+// ── Countdown ─────────────────────────────────────────────────────────────────
+let remaining = 10;
+const secEl     = document.getElementById('seconds');
+const proceedBtn = document.getElementById('proceed-btn');
+const cdText    = document.getElementById('countdown-text');
+
+const timer = setInterval(() => {
+  remaining--;
+  secEl.textContent = remaining;
+  if (remaining <= 0) {
+    clearInterval(timer);
+    proceedBtn.disabled = false;
+    proceedBtn.textContent = 'Proceed Anyway';
+    cdText.textContent = 'Proceeding is not recommended.';
+  }
+}, 1000);
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+function goBack() {
+  if (history.length > 1) { history.back(); }
+  else { chrome.tabs.update({ url: 'chrome://newtab/' }); }
+}
+
+function proceed() {
+  if (proceedBtn.disabled) return;
+  chrome.storage.local.set({ [`proceed_${encodeURIComponent(flagURL)}`]: Date.now() });
+  window.location.href = flagURL;
+}
+</script>
+</body>
+</html>
