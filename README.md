@@ -1,5 +1,7 @@
 # LabMe - Zero-Day Phishing Prevention Framework
 
+**Author**: Prathamesh Maurya
+
 LabMe is a comprehensive zero-day phishing prevention framework that leverages machine learning and computer vision to detect and block malicious websites in real-time.
 
 ## System Architecture
